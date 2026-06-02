@@ -84,11 +84,6 @@ error_text_string = "ERROR: NOT ENOUGH GOLD!"
 trap_gold_lost = 0
 resolution_text_lines = []
 screenshake_timer = 0
-island_explore_gold = 0
-island_explore_crew = 0
-island_explore_start_crew = 0
-island_explore_timer = 0
-ISLAND_EXPLORE_TICK_MS = 1000
 
 
 # --- HIGHSCORE TRACKING ---
@@ -401,21 +396,13 @@ def setup_event_ui(event_type):
 
 
     if event_type == "ISLAND":
-        btn_option_1.update_text("EXPLORE THE ISLAND")
+        btn_option_1.update_text("FISH AT THE ISLAND")
         btn_option_2.update_text("LEAVE THE ISLAND")
-        btn_option_3.update_text("GO FISHING")
-        btn_option_4.update_text("")
-        btn_option_4.disabled = True
-    elif event_type == "ISLAND_EXPLORE":
-        btn_option_1.rect.y = 500
-        btn_option_1.update_text("LEAVE ISLAND")
-        btn_option_2.update_text("")
         btn_option_3.update_text("")
-        btn_option_4.update_text("")
-        btn_option_5.update_text("")
-        btn_option_2.disabled = True
         btn_option_3.disabled = True
+        btn_option_4.update_text("")
         btn_option_4.disabled = True
+        btn_option_5.update_text("")
         btn_option_5.disabled = True
     elif event_type == "ISLAND_RESOLUTION":
         btn_option_1.update_text("CONTINUE VOYAGE")
@@ -568,22 +555,10 @@ while True:
                
                 if current_event_type == "ISLAND":
                     if btn_option_1.check_hover(mouse_pos):
-                        globals()['island_explore_gold'] = 0
-                        globals()['island_explore_crew'] = player_manpower
-                        globals()['island_explore_start_crew'] = player_manpower
-                        globals()['island_explore_timer'] = 0
-                        current_event_type = "ISLAND_EXPLORE"
-                        setup_event_ui(current_event_type)
-                        globals()['current_state'] = "ISLAND_EXPLORE"
+                        player_cargo = min(max_cargo_capacity, player_cargo + 2)
+                        action_taken = True
                     elif btn_option_2.check_hover(mouse_pos):
-                        resolution_text_lines = [
-                            "SAILED AWAY",
-                            "You turn the helm and leave the cursed shore behind.",
-                            "The screams fade into the sea as your ship continues its voyage.",
-                            ""
-                        ]
-                        current_event_type = "ISLAND_RESOLUTION"
-                        setup_event_ui(current_event_type)
+                        action_taken = True
 
 
                 elif current_event_type == "ISLAND_RESOLUTION":
@@ -747,20 +722,6 @@ while True:
                         max_gold_claimed = player_gold
                         globals()['current_state'] = "GAME_OVER"
                    
-            elif globals()['current_state'] == "ISLAND_EXPLORE":
-                if btn_option_1.check_hover(mouse_pos):
-                    player_gold += globals()['island_explore_gold']
-                    player_manpower = globals()['island_explore_crew']
-                    resolution_text_lines = [
-                        "ISLAND RETREAT",
-                        "You pull your crew back from the jungle with loot in hand.",
-                        f"Gold recovered: {globals()['island_explore_gold']}g. Remaining crew: {player_manpower}.",
-                        ""
-                    ]
-                    current_event_type = "ISLAND_RESOLUTION"
-                    setup_event_ui(current_event_type)
-                    globals()['current_state'] = "EVENT_PROMPT"
-
             elif globals()['current_state'] == "GAME_OVER":
                 if restart_btn.check_hover(mouse_pos):
                     globals()['current_state'] = "MENU"
@@ -785,9 +746,6 @@ while True:
         if current_event_type == "PORT":
             btn_option_4.check_hover(mouse_pos)
             btn_option_5.check_hover(mouse_pos)
-    elif globals()['current_state'] == "ISLAND_EXPLORE":
-        btn_option_1.check_hover(mouse_pos)
-        
     elif globals()['current_state'] == "TAX_TIME":
         pay_tax_btn.check_hover(mouse_pos)
     elif globals()['current_state'] == "GAME_OVER":
@@ -824,18 +782,6 @@ while True:
                
             setup_event_ui(current_event_type)
             globals()['current_state'] = "EVENT_PROMPT"
-    elif globals()['current_state'] == "ISLAND_EXPLORE":
-        globals()['island_explore_timer'] += delta_time
-        if globals()['island_explore_timer'] >= ISLAND_EXPLORE_TICK_MS:
-            globals()['island_explore_timer'] = 0
-            if globals()['island_explore_crew'] > 0:
-                globals()['island_explore_gold'] += random.randint(12, 18)
-                globals()['island_explore_crew'] = max(0, globals()['island_explore_crew'] - 1)
-            if globals()['island_explore_crew'] <= 0:
-                game_over_reason = "CANNIBALS"
-                max_days_survived = current_day
-                max_gold_claimed = player_gold
-                globals()['current_state'] = "GAME_OVER"
 
     # --- 3. DRAWING ---
     screen.fill(DARK_BLUE)
@@ -878,7 +824,7 @@ while True:
         select_button.draw(screen)
         back_button.draw(screen)
 
-    elif current_state in ["PLAYING", "EVENT_PROMPT", "TAX_TIME", "GAME_OVER", "ISLAND_EXPLORE"]:
+    elif current_state in ["PLAYING", "EVENT_PROMPT", "TAX_TIME", "GAME_OVER"]:
         if gameplay_ocean_img:
             screen.blit(gameplay_ocean_img, (sea_scroll_x + shake_x, 0 + shake_y))
             screen.blit(gameplay_ocean_img, (sea_scroll_x - SCREEN_WIDTH + shake_x, 0 + shake_y))
@@ -934,88 +880,15 @@ while True:
             accent_lines = []
             accent_colors = []
 
-        elif globals()['current_state'] == "ISLAND_EXPLORE":
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((11, 24, 44, 230))
-            screen.blit(overlay, (0, 0))
-
-            box_height = 360
-            pygame.draw.rect(screen, SHADOW_COLOR, (64, 54, 672, box_height))
-            pygame.draw.rect(screen, GOLD, (60, 50, 672, box_height), 4)
-
-            prompt_left = 60
-            prompt_top = 50
-            prompt_width = 672
-            prompt_center_x = prompt_left + prompt_width // 2
-            prompt_inner_width = prompt_width - 40
-
-            title_text = "ISLAND EXPLORATION"
-            body_lines = [
-                "Your crew pushes deeper into the jungle, trading men for treasure.",
-                "The longer you stay, the more gold you collect — but the more crew you lose.",
-                "Leave before your manpower drops to zero or the island claims your ship."
-            ]
-            body_colors = [WHITE, WHITE, GOLD]
-            accent_lines = []
-            accent_colors = []
-            title_color = GOLD
-
-            title_lines = wrap_text(title_text, font_subtitle, prompt_inner_width)
-            body_wrapped = []
-            for idx, line in enumerate(body_lines):
-                wrapped = wrap_text(line, font_event, prompt_inner_width)
-                for wrapped_line in wrapped:
-                    body_wrapped.append((wrapped_line, body_colors[idx]))
-
-            current_y = prompt_top + 20
-            for line in title_lines:
-                title_surf = font_subtitle.render(line, True, title_color)
-                screen.blit(title_surf, (prompt_center_x - title_surf.get_width() // 2, current_y))
-                current_y += font_subtitle.get_linesize() + 2
-
-            current_y += 20
-            for line, color in body_wrapped:
-                body_surf = font_event.render(line, True, color)
-                screen.blit(body_surf, (prompt_center_x - body_surf.get_width() // 2, current_y))
-                current_y += font_event.get_linesize() + 4
-
-            current_y += 20
-            bar_x = prompt_left + 30
-            bar_width = prompt_width - 60
-            bar_height = 30
-
-            crew_ratio = globals()['island_explore_crew'] / globals()['island_explore_start_crew'] if globals()['island_explore_start_crew'] else 0
-            pygame.draw.rect(screen, SHADOW_COLOR, (bar_x + 3, current_y + 3, bar_width, bar_height))
-            pygame.draw.rect(screen, RED, (bar_x, current_y, int(bar_width * crew_ratio), bar_height))
-            crew_label = font_event.render(f"Crew Remaining: {globals()['island_explore_crew']}/{globals()['island_explore_start_crew']}", True, WHITE)
-            screen.blit(crew_label, (bar_x + 8, current_y + 4))
-
-            current_y += bar_height + 20
-            gold_goal = max(200, globals()['island_explore_start_crew'] * 120)
-            gold_ratio = min(1.0, globals()['island_explore_gold'] / gold_goal)
-            pygame.draw.rect(screen, SHADOW_COLOR, (bar_x + 3, current_y + 3, bar_width, bar_height))
-            pygame.draw.rect(screen, GOLD, (bar_x, current_y, int(bar_width * gold_ratio), bar_height))
-            gold_label = font_event.render(f"Gold Collected: {globals()['island_explore_gold']}g", True, WHITE)
-            screen.blit(gold_label, (bar_x + 8, current_y + 4))
-
-            current_y += bar_height + 24
-            next_tick = max(0.0, (ISLAND_EXPLORE_TICK_MS - globals()['island_explore_timer']) / 1000.0)
-            next_tick_text = f"Next search in: {next_tick:.1f}s"
-            tick_label = font_event.render(next_tick_text, True, WHITE)
-            screen.blit(tick_label, (bar_x + 8, current_y))
-
-            current_y += font_event.get_linesize() + 12
-            btn_option_1.draw(screen)
-
         if globals()['current_state'] == "EVENT_PROMPT":
             if current_event_type == "ISLAND":
-                title_text = "BOARDING THE ISLAND"
+                title_text = "ISLAND FISHING SPOT"
                 body_lines = [
-                    "You steer toward the beach. The jungle shivers and distant screams drift over the water.",
-                    "Choose to explore the island or turn back before the shore swallows your crew.",
+                    "A quiet inlet opens near the island. The water looks rich with fish.",
+                    "Catch 2 cargo worth of fish, or sail away and continue your voyage.",
                 ]
                 body_colors = [WHITE, WHITE]
-                accent_lines = ["The sea is calm, but the island feels cursed."]
+                accent_lines = ["Fish now to stock your hold before leaving."]
                 accent_colors = [GOLD]
             elif current_event_type == "ISLAND_RESOLUTION":
                 title_text = resolution_text_lines[0]
