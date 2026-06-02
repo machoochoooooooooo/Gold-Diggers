@@ -88,6 +88,7 @@ island_explore_gold = 0
 island_explore_crew = 0
 island_explore_start_crew = 0
 island_explore_timer = 0
+ISLAND_EXPLORE_TICK_MS = 1000
 
 
 # --- HIGHSCORE TRACKING ---
@@ -825,23 +826,16 @@ while True:
             globals()['current_state'] = "EVENT_PROMPT"
     elif globals()['current_state'] == "ISLAND_EXPLORE":
         globals()['island_explore_timer'] += delta_time
-        print(f"UPDATE TICK: timer accumulating... current={globals()['island_explore_timer']}")
-        while globals()['island_explore_timer'] >= 100:
-            globals()['island_explore_timer'] -= 100
+        if globals()['island_explore_timer'] >= ISLAND_EXPLORE_TICK_MS:
+            globals()['island_explore_timer'] = 0
             if globals()['island_explore_crew'] > 0:
                 globals()['island_explore_gold'] += random.randint(12, 18)
                 globals()['island_explore_crew'] = max(0, globals()['island_explore_crew'] - 1)
-                print(f"✓ TICK EXECUTED: crew={globals()['island_explore_crew']}, gold={globals()['island_explore_gold']}")
             if globals()['island_explore_crew'] <= 0:
-                print(f"CREW DEAD - GAME OVER")
                 game_over_reason = "CANNIBALS"
                 max_days_survived = current_day
                 max_gold_claimed = player_gold
                 globals()['current_state'] = "GAME_OVER"
-    
-    # Verbose debug for island exploration
-    if globals()['current_state'] == "ISLAND_EXPLORE":
-        print(f"STATE: crew={globals()['island_explore_crew']} | gold={globals()['island_explore_gold']} | timer={globals()['island_explore_timer']:.0f}")
 
     # --- 3. DRAWING ---
     screen.fill(DARK_BLUE)
@@ -1004,7 +998,13 @@ while True:
             gold_label = font_event.render(f"Gold Collected: {globals()['island_explore_gold']}g", True, WHITE)
             screen.blit(gold_label, (bar_x + 8, current_y + 4))
 
-            current_y += bar_height + 30
+            current_y += bar_height + 24
+            next_tick = max(0.0, (ISLAND_EXPLORE_TICK_MS - globals()['island_explore_timer']) / 1000.0)
+            next_tick_text = f"Next search in: {next_tick:.1f}s"
+            tick_label = font_event.render(next_tick_text, True, WHITE)
+            screen.blit(tick_label, (bar_x + 8, current_y))
+
+            current_y += font_event.get_linesize() + 12
             btn_option_1.draw(screen)
 
         if globals()['current_state'] == "EVENT_PROMPT":
