@@ -3,10 +3,9 @@ import random
 import sys
 import pygame
 
-
-# Initialize Pygame
+# Initialize Pygame and Mixer
 pygame.init()
-
+pygame.mixer.init()
 
 # --- WINDOW SETUP ---
 SCREEN_WIDTH = 800
@@ -14,7 +13,6 @@ SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("GOLD DIGGERS")
 clock = pygame.time.Clock()
-
 
 # --- COLORS ---
 DARK_BLUE = (11, 24, 44)
@@ -30,14 +28,12 @@ ORANGE = (230, 126, 34)
 WOOD_BROWN = (139, 69, 19)
 PURPLE = (155, 89, 182)
 
-
 # --- FONTS ---
 font_title = pygame.font.SysFont("impact", 72)
 font_subtitle = pygame.font.SysFont("impact", 40)
 font_button = pygame.font.SysFont("couriernew", 16, bold=True)
-font_ui = pygame.font.SysFont("couriernew", 16, bold=True)
+font_ui = pygame.font.SysFont("couriernew", 16, bold=True) 
 font_event = pygame.font.SysFont("couriernew", 18, bold=True)
-
 
 # --- PRE-RENDER MENU TEXT ---
 title_text = "GOLD DIGGERS"
@@ -46,25 +42,21 @@ title_main = font_title.render(title_text, True, GOLD)
 title_x = SCREEN_WIDTH // 2 - title_main.get_width() // 2
 title_base_y = SCREEN_HEIGHT // 2 - 120
 
-
 # --- GAME STATES ---
-globals()['current_state'] = "MENU"
+current_state = "MENU"
 current_event_type = "ISLAND"  
-
 
 # --- GAMEPLAY VARIABLES ---
 player_gold = 500
 player_manpower = 10
 player_cargo = 0        
-max_cargo_capacity = 10
+max_cargo_capacity = 10 
 player_armor = 5
 player_speed = 5
-
 
 current_day = 1
 prompts_faced_today = 0
 game_over_reason = "SPEED"
-
 
 # --- PORT VARIATION VARIABLES ---
 current_port_cargo_price = 100
@@ -72,10 +64,8 @@ current_port_sail_price = 225
 current_port_hold_price = 180
 current_port_crew_price = 75
 
-
 # --- SCALING ENEMY DIFFICULTY ---
 pirate_difficulty_modifier = 0.0  
-
 
 # --- ERROR & RESOLUTION TRACKING ---
 error_message_timer = 0
@@ -85,23 +75,30 @@ trap_gold_lost = 0
 resolution_text_lines = []
 screenshake_timer = 0
 
-
 # --- HIGHSCORE TRACKING ---
 max_days_survived = 1
 max_gold_claimed = 500
 current_tax_amount = 100
 
-
 PROMPT_INTERVAL = 10000  
 sailing_timer = 0        
 last_time_check = pygame.time.get_ticks()
 
+# --- MUSIC SYSTEM FUNCTIONS ---
+def play_music(file_path):
+    try:
+        pygame.mixer.music.load(file_path)
+        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.play(-1)  # -1 loops the music indefinitely
+    except pygame.error:
+        print(f"Warning: Audio file '{file_path}' not found. Continuing without music.")
+
+# Start menu music immediately
+play_music("menu_music.mp3")
 
 # --- FLOATING CRATES SYSTEM ---
 crates_list = []
-crate_reward_popups = []
-CRATE_SPAWN_CHANCE = 0.002
-
+CRATE_SPAWN_CHANCE = 0.002 
 
 class FloatingCrate:
     def __init__(self):
@@ -112,11 +109,9 @@ class FloatingCrate:
         self.speed = random.uniform(1.5, 3.0)
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
-
     def update(self):
         self.x += self.speed
         self.rect.x = self.x
-
 
     def draw(self, surface):
         pygame.draw.rect(surface, SHADOW_COLOR, (self.rect.x + 2, self.rect.y + 2, self.width, self.height))
@@ -125,13 +120,10 @@ class FloatingCrate:
         pygame.draw.line(surface, GOLD, (self.rect.x, self.rect.y), (self.rect.x + self.width, self.rect.y + self.height), 2)
 
 
-
-
 # --- ASSETS (BACKGROUND GENERATORS) ---
 BEACH_IMAGE_ID = "testbeach.jpg"
 OCEAN_IMAGE_ID = "ocean.png"  
 BG_BUFFER = 40
-
 
 try:
     background_img = pygame.image.load(BEACH_IMAGE_ID).convert()
@@ -140,7 +132,6 @@ except (pygame.error, FileNotFoundError):
     background_img = pygame.Surface((SCREEN_WIDTH + BG_BUFFER, SCREEN_HEIGHT + BG_BUFFER))
     background_img.fill(LIGHT_BLUE)
     pygame.draw.rect(background_img, SAND, (0, SCREEN_HEIGHT - 100, SCREEN_WIDTH + BG_BUFFER, 150))
-
 
 try:
     gameplay_ocean_img = pygame.image.load(OCEAN_IMAGE_ID).convert()
@@ -152,33 +143,31 @@ except (pygame.error, FileNotFoundError):
         for j in range(0, SCREEN_HEIGHT, 50):
             pygame.draw.arc(gameplay_ocean_img, LIGHT_BLUE, (i, j, 20, 10), 0, math.pi, 2)
 
-
 # --- SHIP CATALOG DATA ---
 SHIPS = [
     {
-        "name": "THE SWIFT SLOOP",
-        "desc": "Light, agile, and incredibly fast. Ideal for solo smugglers.",
-        "speed": 9, "armor": 3, "cargo": 4,
-        "starting_crew": 5, "prompt_interval": 10000,
+        "name": "THE SWIFT SLOOP", 
+        "desc": "Light, agile, and incredibly fast. Ideal for solo smugglers.", 
+        "speed": 9, "armor": 3, "cargo": 4, 
+        "starting_crew": 5, "prompt_interval": 10000, 
         "img_path": "ship_sloop.png"
     },
     {
-        "name": "GOLDEN BRIGANTINE",
-        "desc": "A balanced hunter-gatherer vessel. Sturdy and reliable.",
-        "speed": 7,
-        "armor": 6, "cargo": 6,
-        "starting_crew": 15, "prompt_interval": 15000,
+        "name": "GOLDEN BRIGANTINE", 
+        "desc": "A balanced hunter-gatherer vessel. Sturdy and reliable.", 
+        "speed": 7, 
+        "armor": 6, "cargo": 6, 
+        "starting_crew": 15, "prompt_interval": 15000, 
         "img_path": "ship_brig.png"
     },
     {
-        "name": "DREAD GALLEON",
-        "desc": "A floating fortress. Massive cargo space, but moves like a brick.",
-        "speed": 3, "armor": 10, "cargo": 10,
-        "starting_crew": 30, "prompt_interval": 18000,
+        "name": "DREAD GALLEON", 
+        "desc": "A floating fortress. Massive cargo space, but moves like a brick.", 
+        "speed": 3, "armor": 10, "cargo": 10, 
+        "starting_crew": 30, "prompt_interval": 18000, 
         "img_path": "ship_galleon.png"
     },
 ]
-
 
 for ship in SHIPS:
     try:
@@ -191,12 +180,9 @@ for ship in SHIPS:
     except (pygame.error, FileNotFoundError):
         ship["has_img"] = False
 
-
 current_ship_index = 0
 player_ship_surface = None
 player_ship_has_img = False
-
-
 
 
 # --- BUTTON CLASS ---
@@ -211,16 +197,14 @@ class PixelButton:
         self.disabled = False
         self.update_text(text)
 
-
     def update_text(self, new_text):
         self.text = new_text
         self.text_surf = font_button.render(self.text, True, self.text_color)
         self.text_rect = self.text_surf.get_rect(center=self.rect.center)
 
-
     def draw(self, surface):
         pygame.draw.rect(surface, SHADOW_COLOR, (self.rect.x + 4, self.rect.y + 4, *self.rect.size))
-       
+        
         if self.disabled:
             pygame.draw.rect(surface, (70, 75, 85), self.rect)
             disabled_text = font_button.render(self.text, True, GRAY)
@@ -228,7 +212,6 @@ class PixelButton:
         else:
             pygame.draw.rect(surface, self.current_color, self.rect)
             surface.blit(self.text_surf, self.text_rect)
-
 
     def check_hover(self, mouse_pos):
         if self.disabled:
@@ -241,8 +224,6 @@ class PixelButton:
             return False
 
 
-
-
 # --- INITIALIZE UI BUTTONS ---
 play_button = PixelButton("PLAY", SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 50, 200, 60, GOLD, WHITE)
 prev_button = PixelButton("<", 50, SCREEN_HEIGHT // 2 - 30, 60, 60, GOLD, WHITE)
@@ -250,12 +231,10 @@ next_button = PixelButton((">"), SCREEN_WIDTH - 110, SCREEN_HEIGHT // 2 - 30, 60
 select_button = PixelButton("CHOOSE SHIP", SCREEN_WIDTH // 2 - 125, SCREEN_HEIGHT - 90, 250, 50, GOLD, WHITE)
 back_button = PixelButton("BACK", 30, 30, 100, 45, GOLD, WHITE)
 
-
 # --- DYNAMIC EVENT BUTTON CONFIGS ---
 event_btn_w = 440
 event_btn_h = 42
 event_center_x = SCREEN_WIDTH // 2 - (event_btn_w // 2)
-
 
 # Grid layout buttons
 btn_option_1 = PixelButton("OPTION 1", event_center_x, 340, event_btn_w, event_btn_h, GOLD, WHITE)
@@ -264,11 +243,8 @@ btn_option_3 = PixelButton("OPTION 3", event_center_x, 440, event_btn_w, event_b
 btn_option_4 = PixelButton("OPTION 4", event_center_x, 490, event_btn_w, event_btn_h, GOLD, WHITE)
 btn_option_5 = PixelButton("OPTION 5", event_center_x, 540, event_btn_w, event_btn_h, GOLD, WHITE)
 
-
 pay_tax_btn = PixelButton("PAY TAX & REST", SCREEN_WIDTH // 2 - 160, 430, 320, 55, RED, WHITE, text_color=WHITE)
 restart_btn = PixelButton("RETURN TO MAIN MENU", SCREEN_WIDTH // 2 - 140, 480, 280, 55, GOLD, WHITE)
-
-
 
 
 # --- HELPER DRAWING FUNCTIONS ---
@@ -283,152 +259,66 @@ def draw_stat_bar(surface, x, y, label, value, max_value=10):
     fill_width = int(fill_ratio * bar_width)
     pygame.draw.rect(surface, GREEN, (bar_x, y + 2, fill_width, bar_height))
 
-
 def draw_top_bar(surface):
     stats_bg = pygame.Rect(0, 0, SCREEN_WIDTH, 45)
     pygame.draw.rect(surface, DARK_BLUE, stats_bg)
     pygame.draw.line(surface, GOLD, (0, 45), (SCREEN_WIDTH, 45), 3)
-   
+    
     day_lbl = font_ui.render(f"DAY: {current_day}", True, GOLD)
     gold_lbl = font_ui.render(f"GOLD: {player_gold}g", True, WHITE)
     crew_lbl = font_ui.render(f"CREW: {player_manpower}", True, GREEN)
     cargo_lbl = font_ui.render(f"CARGO: {player_cargo}/{max_cargo_capacity}", True, ORANGE)
     speed_lbl = font_ui.render(f"SPD: {player_speed}/30", True, LIGHT_BLUE)
-   
+    
     surface.blit(day_lbl, (15, 14))
     surface.blit(gold_lbl, (140, 14))
     surface.blit(crew_lbl, (310, 14))
     surface.blit(cargo_lbl, (480, 14))
     surface.blit(speed_lbl, (670, 14))
 
-
-
-
-def wrap_text(text, font, max_width):
-    if not text:
-        return []
-
-
-    lines = []
-    for paragraph in str(text).splitlines():
-        paragraph = paragraph.strip()
-        if not paragraph:
-            lines.append("")
-            continue
-
-
-        words = paragraph.split()
-        current = []
-        current_width = 0
-
-
-        for word in words:
-            test_text = (" ".join(current + [word])) if current else word
-            test_width = font.size(test_text)[0]
-
-
-            if current and test_width > max_width:
-                lines.append(" ".join(current))
-                current = [word]
-                current_width = font.size(word)[0]
-            else:
-                current.append(word)
-                current_width = test_width
-
-
-        if current:
-            lines.append(" ".join(current))
-
-
-    return lines
-
-
-
-
-def draw_wrapped_line(surface, font, color, text, center_x, y):
-    if not text:
-        return y
-
-
-    rendered = font.render(text, True, color)
-    surface.blit(rendered, (center_x - rendered.get_width() // 2, y))
-    return y + font.get_linesize()
-
-
-
-
-def draw_island_boarding_scene(surface, y_offset=0):
-    return
-
-
-def draw_reward_popups(surface):
-    for index, popup in enumerate(crate_reward_popups):
-        draw_y = SCREEN_HEIGHT - 36 - (index * 28)
-        shadow = font_event.render(popup["text"], True, SHADOW_COLOR)
-        text_surf = font_event.render(popup["text"], True, GOLD)
-        surface.blit(shadow, (popup["x"] + 2, draw_y + 2))
-        surface.blit(text_surf, (popup["x"], draw_y))
-
-
-
-
-
 def setup_event_ui(event_type):
     global current_port_cargo_price, current_port_sail_price, current_port_hold_price, current_port_crew_price
-   
+    
     btn_option_1.disabled = False
     btn_option_2.disabled = False
     btn_option_3.disabled = False
     btn_option_4.disabled = False
     btn_option_5.disabled = False
 
-
-    btn_option_1.rect.y = 300
-    btn_option_2.rect.y = 350
-    btn_option_3.rect.y = 400
-    btn_option_4.rect.y = 450
-    btn_option_5.rect.y = 500
+    btn_option_1.rect.y = 340
+    btn_option_2.rect.y = 390
+    btn_option_3.rect.y = 440
+    btn_option_4.rect.y = 490
+    btn_option_5.rect.y = 540
     btn_option_1.update_text("")
     btn_option_2.update_text("")
     btn_option_3.update_text("")
     btn_option_4.update_text("")
     btn_option_5.update_text("")
 
-
     if event_type == "ISLAND":
-        btn_option_1.update_text("FISH AT THE ISLAND")
-        btn_option_2.update_text("LEAVE THE ISLAND")
-        btn_option_3.update_text("")
-        btn_option_3.disabled = True
-        btn_option_4.update_text("")
-        btn_option_4.disabled = True
-        btn_option_5.update_text("")
-        btn_option_5.disabled = True
-    elif event_type == "ISLAND_RESOLUTION":
-        btn_option_1.update_text("CONTINUE VOYAGE")
-        btn_option_2.update_text("")
-        btn_option_3.update_text("")
-        btn_option_2.disabled = True
-        btn_option_3.disabled = True
+        btn_option_1.update_text("GO EXPLORE SHORE")
+        btn_option_2.update_text("STEER CLEAR AROUND IT")
+        btn_option_3.update_text("GO NET FISHING (+2 CARGO)")
     elif event_type == "ENEMY":
         required_crew = 18 + int(pirate_difficulty_modifier * 2)
         btn_option_1.update_text(f"FIRE CANNONS! (REQ. {required_crew} CREW)")
         btn_option_2.update_text("EVADE & FLEE (SPEED CHECK)")
         btn_option_3.update_text("SURRENDER 1 CARGO TO PASS")
-           
+            
     elif event_type == "PORT":
         # Generate new localized prices every time a port loads
         current_port_cargo_price = random.randint(85, 115)   # Base 100
         current_port_sail_price = random.randint(210, 245)   # Base 225
         current_port_hold_price = random.randint(165, 195)   # Base 180
         current_port_crew_price = random.randint(70, 85)     # Base 75
-       
+        
         btn_option_1.update_text(f"SELL ALL CARGO [{current_port_cargo_price}G EACH]")
         btn_option_2.update_text(f"UPGRADE SAILS (+1 SPEED) [-{current_port_sail_price}G]")
         btn_option_3.update_text(f"EXPAND HOLD (+2 CAP) [-{current_port_hold_price}G]")
         btn_option_4.update_text(f"RECRUIT HANDS (+3 CREW) [-{current_port_crew_price}G]")
         btn_option_5.update_text("DEPART DOCKS & CONTINUE VOYAGE")
-       
+        
         if player_cargo == 0:
             btn_option_1.disabled = True
         if player_gold < current_port_sail_price:
@@ -437,50 +327,31 @@ def setup_event_ui(event_type):
             btn_option_3.disabled = True
         if player_gold < current_port_crew_price:
             btn_option_4.disabled = True
-           
+            
     elif event_type in ["SQUID_TRAP", "BATTLE_RESOLUTION", "ROGUE_WAVE", "KRAKEN"]:
         btn_option_1.update_text("CONTINUE VOYAGE")
-
-
 
 
 # --- MAIN LOOP ---
 title_bob_timer = 0
 bg_wave_timer = 0
-sea_scroll_x = 0
-shake_x = 0
-shake_y = 0
+sea_scroll_x = 0  
 last_time_check = pygame.time.get_ticks()
-
 
 while True:
     current_ticks = pygame.time.get_ticks()
     delta_time = current_ticks - last_time_check
     last_time_check = current_ticks
-   
+    
     mouse_pos = pygame.mouse.get_pos()
-
 
     if show_error_message:
         error_message_timer -= delta_time
         if error_message_timer <= 0:
             show_error_message = False
 
-
-    for popup in crate_reward_popups[:]:
-        popup["timer"] -= delta_time
-        if popup["timer"] <= 0:
-            crate_reward_popups.remove(popup)
-
-
     if screenshake_timer > 0:
         screenshake_timer -= delta_time
-        shake_x = random.randint(-4, 4)
-        shake_y = random.randint(-4, 4)
-    else:
-        shake_x = 0
-        shake_y = 0
-
 
     # --- 1. EVENT HANDLING ---
     for event in pygame.event.get():
@@ -488,32 +359,30 @@ while True:
             pygame.quit()
             sys.exit()
 
-
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if globals()['current_state'] == "MENU":
+            if current_state == "MENU":
                 if play_button.check_hover(mouse_pos):
-                    globals()['current_state'] = "CUSTOMIZATION"
+                    current_state = "CUSTOMIZATION"
 
-
-            elif globals()['current_state'] == "CUSTOMIZATION":
+            elif current_state == "CUSTOMIZATION":
                 if prev_button.check_hover(mouse_pos):
                     current_ship_index = (current_ship_index - 1) % len(SHIPS)
                 elif next_button.check_hover(mouse_pos):
                     current_ship_index = (current_ship_index + 1) % len(SHIPS)
                 elif back_button.check_hover(mouse_pos):
-                    globals()['current_state'] = "MENU"
+                    current_state = "MENU"
                 elif select_button.check_hover(mouse_pos):
                     chosen_ship = SHIPS[current_ship_index]
                     player_ship_has_img = chosen_ship["has_img"]
                     if player_ship_has_img:
                         player_ship_surface = chosen_ship["surface"]
-                   
+                    
                     max_cargo_capacity = chosen_ship["cargo"]
                     player_manpower = chosen_ship["starting_crew"]  
                     player_armor = chosen_ship["armor"]
                     player_speed = chosen_ship["speed"]
                     PROMPT_INTERVAL = chosen_ship["prompt_interval"]  
-                   
+                    
                     sailing_timer = 0
                     current_day = 1
                     pirate_difficulty_modifier = 0.0
@@ -523,61 +392,50 @@ while True:
                     current_tax_amount = 100
                     crates_list.clear()
                     show_error_message = False
-                   
-                    globals()['current_state'] = "PLAYING"
+                    
+                    # Transition Music from Menu to Sailing
+                    play_music("sailing_music.mp3")
+                    current_state = "PLAYING"
 
-
-            elif globals()['current_state'] == "PLAYING":
+            elif current_state == "PLAYING":
                 for crate in crates_list[:]:
                     if crate.rect.collidepoint(mouse_pos):
-                        if random.random() < 0.15:
+                        if random.random() < 0.15:  
                             trap_gold_lost = int(player_gold * 0.05)
                             player_gold = max(0, player_gold - trap_gold_lost)
                             current_event_type = "SQUID_TRAP"
                             setup_event_ui(current_event_type)
-                            globals()['current_state'] = "EVENT_PROMPT"
-                        else:
+                            current_state = "EVENT_PROMPT"
+                        else:  
                             added_gold = random.randint(10, 30)
                             player_gold += added_gold
-                            crate_reward_popups.append({
-                                "text": f"+{added_gold} GOLD",
-                                "timer": 2200,
-                                "x": 18,
-                            })
+                            print(f"Salvaged crate! Found {added_gold} gold.")
+                            
+                        crates_list.remove(crate)
+                        break
 
-
-                            crates_list.remove(crate)
-                            break
-
-
-            elif globals()['current_state'] == "EVENT_PROMPT":
+            elif current_state == "EVENT_PROMPT":
                 action_taken = False
-               
+                
                 if current_event_type == "ISLAND":
                     if btn_option_1.check_hover(mouse_pos):
-                        player_cargo = min(max_cargo_capacity, player_cargo + 2)
                         action_taken = True
                     elif btn_option_2.check_hover(mouse_pos):
                         action_taken = True
-
-
-                elif current_event_type == "ISLAND_RESOLUTION":
-                    if btn_option_1.check_hover(mouse_pos):
-                        prompts_faced_today += 1
-                        show_error_message = False
-                        globals()['current_state'] = "PLAYING"
-
+                    elif btn_option_3.check_hover(mouse_pos):
+                        if player_cargo < max_cargo_capacity:
+                            player_cargo = min(max_cargo_capacity, player_cargo + 2)
+                        action_taken = True
 
                 elif current_event_type == "ENEMY":
                     required_crew = 18 + int(pirate_difficulty_modifier * 2)
-
 
                     if btn_option_1.check_hover(mouse_pos):
                         if player_manpower < required_crew:
                             game_over_reason = "FIREPOWER"
                             max_days_survived = current_day
                             max_gold_claimed = player_gold
-                            globals()['current_state'] = "GAME_OVER"
+                            current_state = "GAME_OVER"
                         else:
                             screenshake_timer = 400
                             loss = max(1, (8 + int(pirate_difficulty_modifier)) - player_armor)
@@ -591,7 +449,7 @@ while True:
                                 f"Battle casualties sustained: -{loss} Manpower due to elevated hostiles."
                             ]
                             setup_event_ui(current_event_type)
-                           
+                            
                     elif btn_option_2.check_hover(mouse_pos):
                         escape_chance = (player_speed - pirate_difficulty_modifier) * 10
                         if random.randint(1, 100) <= escape_chance:
@@ -607,15 +465,14 @@ while True:
                             game_over_reason = "SPEED"
                             max_days_survived = current_day
                             max_gold_claimed = player_gold
-                            globals()['current_state'] = "GAME_OVER"
-
+                            current_state = "GAME_OVER"
 
                     elif btn_option_3.check_hover(mouse_pos):
                         if player_cargo < 1:
                             game_over_reason = "SPEED"
                             max_days_survived = current_day
                             max_gold_claimed = player_gold
-                            globals()['current_state'] = "GAME_OVER"
+                            current_state = "GAME_OVER"
                         else:
                             player_cargo -= 1
                             current_event_type = "BATTLE_RESOLUTION"
@@ -627,7 +484,6 @@ while True:
                             ]
                             setup_event_ui(current_event_type)
 
-
                 elif current_event_type == "PORT":
                     if btn_option_1.rect.collidepoint(mouse_pos) and btn_option_1.disabled:
                         error_text_string = "ERROR: NO CARGO TO CONVERT!"
@@ -637,7 +493,7 @@ while True:
                         player_gold += (player_cargo * current_port_cargo_price)
                         player_cargo = 0
                         setup_event_ui("PORT")
-                       
+                        
                     elif btn_option_2.rect.collidepoint(mouse_pos) and btn_option_2.disabled:
                         error_text_string = "ERROR: NOT ENOUGH GOLD!"
                         show_error_message = True
@@ -647,7 +503,7 @@ while True:
                             player_gold -= current_port_sail_price
                             player_speed += 1
                             setup_event_ui("PORT")
-                       
+                        
                     elif btn_option_3.rect.collidepoint(mouse_pos) and btn_option_3.disabled:
                         error_text_string = "ERROR: NOT ENOUGH GOLD!"
                         show_error_message = True
@@ -657,7 +513,7 @@ while True:
                             player_gold -= current_port_hold_price
                             max_cargo_capacity += 2
                             setup_event_ui("PORT")
-                           
+                            
                     elif btn_option_4.rect.collidepoint(mouse_pos) and btn_option_4.disabled:
                         error_text_string = "ERROR: NOT ENOUGH GOLD!"
                         show_error_message = True
@@ -666,20 +522,19 @@ while True:
                         player_gold -= current_port_crew_price
                         player_manpower += 3
                         setup_event_ui("PORT")
-                           
+                            
                     elif btn_option_5.check_hover(mouse_pos):
                         action_taken = True
-                       
+                        
                 elif current_event_type == "ROGUE_WAVE":
                     if btn_option_1.check_hover(mouse_pos):
-                        if player_armor >= 6:
+                        if player_armor >= 6: 
                             action_taken = True
                         else:
                             game_over_reason = "WAVE_CRUSH"
                             max_days_survived = current_day
                             max_gold_claimed = player_gold
-                            globals()['current_state'] = "GAME_OVER"
-
+                            current_state = "GAME_OVER"
 
                 elif current_event_type == "KRAKEN":
                     if btn_option_1.check_hover(mouse_pos):
@@ -689,25 +544,22 @@ while True:
                             game_over_reason = "KRAKEN"
                             max_days_survived = current_day
                             max_gold_claimed = player_gold
-                            globals()['current_state'] = "GAME_OVER"
-
+                            current_state = "GAME_OVER"
 
                 elif current_event_type in ["SQUID_TRAP", "BATTLE_RESOLUTION"]:
                     if btn_option_1.check_hover(mouse_pos):
                         action_taken = True
 
-
                 if action_taken and current_state != "GAME_OVER":
                     prompts_faced_today += 1
-                    show_error_message = False
+                    show_error_message = False 
                     if prompts_faced_today >= 3:
                         pay_tax_btn.update_text(f"PAY {current_tax_amount}G TAX & REST")
-                        globals()['current_state'] = "TAX_TIME"
+                        current_state = "TAX_TIME"
                     else:
-                        globals()['current_state'] = "PLAYING"
+                        current_state = "PLAYING"
 
-
-            elif globals()['current_state'] == "TAX_TIME":
+            elif current_state == "TAX_TIME":
                 if pay_tax_btn.check_hover(mouse_pos):
                     if player_gold >= current_tax_amount:
                         player_gold -= current_tax_amount
@@ -715,62 +567,61 @@ while True:
                         current_tax_amount += 15  
                         pirate_difficulty_modifier += 0.2  
                         prompts_faced_today = 0
-                        globals()['current_state'] = "PLAYING"
+                        current_state = "PLAYING"
                     else:
                         game_over_reason = "BANKRUPT"
                         max_days_survived = current_day
                         max_gold_claimed = player_gold
-                        globals()['current_state'] = "GAME_OVER"
-                   
-            elif globals()['current_state'] == "GAME_OVER":
+                        current_state = "GAME_OVER"
+                    
+            elif current_state == "GAME_OVER":
                 if restart_btn.check_hover(mouse_pos):
-                    globals()['current_state'] = "MENU"
-
+                    # Reset back to menu music loop
+                    play_music("menu_music.mp3")
+                    current_state = "MENU"
 
     # --- 2. UPDATE STATE/ANIMATIONS ---
     bg_wave_timer += 0.02
     title_bob_timer += 0.05
 
-
-    if globals()['current_state'] == "MENU":
+    if current_state == "MENU":
         play_button.check_hover(mouse_pos)
-    elif globals()['current_state'] == "CUSTOMIZATION":
+    elif current_state == "CUSTOMIZATION":
         prev_button.check_hover(mouse_pos)
         next_button.check_hover(mouse_pos)
         select_button.check_hover(mouse_pos)
         back_button.check_hover(mouse_pos)
-    elif globals()['current_state'] == "EVENT_PROMPT":
+    elif current_state == "EVENT_PROMPT":
         btn_option_1.check_hover(mouse_pos)
         btn_option_2.check_hover(mouse_pos)
         btn_option_3.check_hover(mouse_pos)
         if current_event_type == "PORT":
             btn_option_4.check_hover(mouse_pos)
             btn_option_5.check_hover(mouse_pos)
-    elif globals()['current_state'] == "TAX_TIME":
+            
+    elif current_state == "TAX_TIME":
         pay_tax_btn.check_hover(mouse_pos)
-    elif globals()['current_state'] == "GAME_OVER":
+    elif current_state == "GAME_OVER":
         restart_btn.check_hover(mouse_pos)
-       
-    elif globals()['current_state'] == "PLAYING":
-        sea_scroll_x += 1.5
+        
+    elif current_state == "PLAYING":
+        sea_scroll_x += 1.5 
         if sea_scroll_x >= SCREEN_WIDTH:
             sea_scroll_x = 0
-           
+            
         if random.random() < CRATE_SPAWN_CHANCE:
             crates_list.append(FloatingCrate())
-
 
         for crate in crates_list[:]:
             crate.update()
             if crate.x > SCREEN_WIDTH + 50:
                 crates_list.remove(crate)
 
-
         sailing_timer += delta_time
         if sailing_timer >= PROMPT_INTERVAL:
             sailing_timer = 0  
-            crates_list.clear()
-           
+            crates_list.clear() 
+            
             if current_day == 5 and prompts_faced_today == 0:
                 current_event_type = "ROGUE_WAVE"
             elif current_day > 10:
@@ -779,86 +630,94 @@ while True:
                 current_event_type = random.choice(["ISLAND", "ENEMY", "PORT", "ROGUE_WAVE"])
             else:
                 current_event_type = random.choice(["ISLAND", "ENEMY", "PORT"])
-               
+                
             setup_event_ui(current_event_type)
-            globals()['current_state'] = "EVENT_PROMPT"
+            current_state = "EVENT_PROMPT"
 
     # --- 3. DRAWING ---
-    screen.fill(DARK_BLUE)
+    shake_x = 0
+    shake_y = 0
+    if screenshake_timer > 0:
+        shake_x = random.randint(-6, 6)
+        shake_y = random.randint(-6, 6)
 
-    if globals()['current_state'] == "MENU":
-        screen.blit(background_img, (0, 0))
-        title_y = title_base_y + math.sin(title_bob_timer) * 8
-        screen.blit(title_shadow, (title_x + 4, title_y + 4))
-        screen.blit(title_main, (title_x, title_y))
-        play_button.draw(screen)
+    # Rendering Setup for non-gameplay background states
+    if current_state in ["MENU", "CUSTOMIZATION"]:
+        screen.blit(background_img, (-20 + shake_x, -20 + shake_y))
         
-        subtitle = font_subtitle.render("Press PLAY to begin your adventure", True, LIGHT_BLUE)
-        screen.blit(subtitle, (SCREEN_WIDTH // 2 - subtitle.get_width() // 2, SCREEN_HEIGHT - 100))
+        if current_state == "MENU":
+            # Wave motion effect for title positioning
+            menu_bob = math.sin(title_bob_timer) * 8
+            screen.blit(title_shadow, (title_x + 4, title_base_y + menu_bob + 4))
+            screen.blit(title_main, (title_x, title_base_y + menu_bob))
+            play_button.draw(screen)
+            
+        elif current_state == "CUSTOMIZATION":
+            back_button.draw(screen)
+            prev_button.draw(screen)
+            next_button.draw(screen)
+            select_button.draw(screen)
+            
+            # Draw catalog display elements
+            ship_data = SHIPS[current_ship_index]
+            name_text = font_subtitle.render(ship_data["name"], True, DARK_BLUE)
+            screen.blit(name_text, (SCREEN_WIDTH // 2 - name_text.get_width() // 2, 80))
+            
+            # Stat layouts
+            draw_stat_bar(screen, SCREEN_WIDTH // 2 - 150, 320, "SPEED:", ship_data["speed"])
+            draw_stat_bar(screen, SCREEN_WIDTH // 2 - 150, 350, "ARMOR:", ship_data["armor"])
+            draw_stat_bar(screen, SCREEN_WIDTH // 2 - 150, 380, "CARGO:", ship_data["cargo"])
+            
+            desc_text = font_button.render(ship_data["desc"], True, DARK_BLUE)
+            screen.blit(desc_text, (SCREEN_WIDTH // 2 - desc_text.get_width() // 2, 430))
 
-    elif globals()['current_state'] == "CUSTOMIZATION":
-        screen.blit(background_img, (0, 0))
-        
-        ship_title = font_title.render("CHOOSE YOUR VESSEL", True, GOLD)
-        screen.blit(ship_title, (SCREEN_WIDTH // 2 - ship_title.get_width() // 2, 30))
-        
-        chosen_ship = SHIPS[current_ship_index]
-        ship_name = font_subtitle.render(chosen_ship["name"], True, GOLD)
-        screen.blit(ship_name, (SCREEN_WIDTH // 2 - ship_name.get_width() // 2, 90))
-        
-        if chosen_ship["has_img"]:
-            screen.blit(chosen_ship["surface"], (SCREEN_WIDTH // 2 - 130, 130))
-        else:
-            pygame.draw.rect(screen, SHADOW_COLOR, (SCREEN_WIDTH // 2 - 70, 140, 140, 80))
-            pygame.draw.rect(screen, GOLD, (SCREEN_WIDTH // 2 - 66, 136, 140, 80))
-        
-        desc_text = font_button.render(chosen_ship["desc"], True, DARK_BLUE)
-        screen.blit(desc_text, (SCREEN_WIDTH // 2 - desc_text.get_width() // 2, 330))
-        
-        draw_stat_bar(screen, SCREEN_WIDTH // 2 - 150, 380, "SPEED:", chosen_ship["speed"])
-        draw_stat_bar(screen, SCREEN_WIDTH // 2 - 150, 410, "ARMOR:", chosen_ship["armor"])
-        draw_stat_bar(screen, SCREEN_WIDTH // 2 - 150, 440, "CARGO:", chosen_ship["cargo"])
-        
-        prev_button.draw(screen)
-        next_button.draw(screen)
-        select_button.draw(screen)
-        back_button.draw(screen)
+            if ship_data["has_img"]:
+                screen.blit(ship_data["surface"], (SCREEN_WIDTH // 2 - 130, 130))
+            else:
+                pygame.draw.rect(screen, SHADOW_COLOR, (SCREEN_WIDTH // 2 - 70, 140, 140, 80))
+                pygame.draw.rect(screen, GOLD, (SCREEN_WIDTH // 2 - 66, 136, 140, 80))
 
     elif current_state in ["PLAYING", "EVENT_PROMPT", "TAX_TIME", "GAME_OVER"]:
         if gameplay_ocean_img:
             screen.blit(gameplay_ocean_img, (sea_scroll_x + shake_x, 0 + shake_y))
             screen.blit(gameplay_ocean_img, (sea_scroll_x - SCREEN_WIDTH + shake_x, 0 + shake_y))
-           
-        if globals()['current_state'] == "PLAYING":
+            
+        if current_state == "PLAYING":
             for crate in crates_list:
                 crate.draw(screen)
-
-
-        draw_reward_popups(screen)
-
 
         ship_center_x = SCREEN_WIDTH // 2 - 130
         ship_center_y = SCREEN_HEIGHT // 2 - 50
         game_bob = math.sin(title_bob_timer * 0.5) * 3
-       
-        if player_ship_has_img and current_state != "GAME_OVER":
-            screen.blit(player_ship_surface, (ship_center_x + shake_x, ship_center_y + game_bob + shake_y))
-        elif current_state != "GAME_OVER":
-            pygame.draw.rect(screen, GOLD, (ship_center_x + 65 + shake_x, ship_center_y + 45 + game_bob + shake_y, 130, 91))
-
+        
+        if current_state == "EVENT_PROMPT" and current_event_type == "ENEMY":
+            player_battle_x = SCREEN_WIDTH // 4 - 80
+            enemy_battle_x = (3 * SCREEN_WIDTH // 4) - 80
+            
+            if player_ship_has_img:
+                screen.blit(player_ship_surface, (player_battle_x + shake_x, ship_center_y + game_bob + shake_y))
+                enemy_surf = pygame.transform.flip(player_ship_surface, True, False)
+                screen.blit(enemy_surf, (enemy_battle_x + shake_x, ship_center_y - game_bob + shake_y))
+            else:
+                pygame.draw.rect(screen, GOLD, (player_battle_x + shake_x, ship_center_y + game_bob + shake_y, 140, 80))
+                pygame.draw.rect(screen, RED, (enemy_battle_x + shake_x, ship_center_y - game_bob + shake_y, 140, 80))
+        else:
+            if player_ship_has_img and current_state != "GAME_OVER":
+                screen.blit(player_ship_surface, (ship_center_x + shake_x, ship_center_y + game_bob + shake_y))
+            elif current_state != "GAME_OVER":
+                pygame.draw.rect(screen, GOLD, (ship_center_x + 65 + shake_x, ship_center_y + 45 + game_bob + shake_y, 130, 91))
 
         draw_top_bar(screen)
 
-
         # --- RANDOM ENCOUNTER OVERLAY ---
-        if globals()['current_state'] == "EVENT_PROMPT":
+        if current_state == "EVENT_PROMPT":
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((11, 24, 44, 230))
+            overlay.fill((11, 24, 44, 230)) 
             screen.blit(overlay, (0, 0))
 
-            box_height = 420 if current_event_type in ["ISLAND", "ISLAND_RESOLUTION"] else 250 if current_event_type == "PORT" else 210
+            box_height = 250 if current_event_type == "PORT" else 210
             pygame.draw.rect(screen, SHADOW_COLOR, (64, 54, 672, box_height))
-
+            
             frame_color = GOLD
             if current_event_type == "ENEMY":
                 frame_color = RED
@@ -866,177 +725,84 @@ while True:
                 frame_color = GREEN
             elif current_event_type in ["SQUID_TRAP", "BATTLE_RESOLUTION", "ROGUE_WAVE", "KRAKEN"]:
                 frame_color = PURPLE
+                
             pygame.draw.rect(screen, frame_color, (60, 50, 672, box_height), 4)
-
-            prompt_left = 60
-            prompt_top = 50
-            prompt_width = 672
-            prompt_center_x = prompt_left + prompt_width // 2
-            prompt_inner_width = prompt_width - 40
-
-            title_text = ""
-            body_lines = []
-            body_colors = []
-            accent_lines = []
-            accent_colors = []
-
-        if globals()['current_state'] == "EVENT_PROMPT":
+            
             if current_event_type == "ISLAND":
-                title_text = "ISLAND FISHING SPOT"
-                body_lines = [
-                    "A quiet inlet opens near the island. The water looks rich with fish.",
-                    "Catch 2 cargo worth of fish, or sail away and continue your voyage.",
-                ]
-                body_colors = [WHITE, WHITE]
-                accent_lines = ["Fish now to stock your hold before leaving."]
-                accent_colors = [GOLD]
-            elif current_event_type == "ISLAND_RESOLUTION":
-                title_text = resolution_text_lines[0]
-                body_lines = [resolution_text_lines[1], resolution_text_lines[2]]
-                body_colors = [WHITE, WHITE]
-                accent_lines = [resolution_text_lines[3]] if resolution_text_lines[3] else []
-                accent_colors = [GOLD] * len(accent_lines)
+                p_text1 = font_subtitle.render("ISLAND SIGHTED!", True, GOLD)
+                p_text2 = font_event.render("An uncharted landmass rises from the misty horizon.", True, WHITE)
+                p_text3 = font_event.render("Will you drop anchor or navigate safely past?", True, WHITE)
             elif current_event_type == "ENEMY":
-                title_text = "ENEMY STANDOFF!"
-                body_lines = [
-                    "Hostile interceptors block your trajectory!",
-                    "Defeating or evading them gets harder every surviving day.",
-                ]
-                body_colors = [WHITE, WHITE]
+                p_text1 = font_subtitle.render("ENEMY STANDOFF!", True, RED)
+                p_text2 = font_event.render("Hostile interceptors block your trajectory!", True, WHITE)
+                p_text3 = font_event.render("Defeating or evading them gets harder every surviving day.", True, WHITE)
             elif current_event_type == "PORT":
-                title_text = "LOCAL PORT MARKET"
-                body_lines = [
-                    "Prices fluctuate based on local resource scarcity at this dock.",
-                    f"YOUR VAULT: {player_gold}g | HOLD: {player_cargo}/{max_cargo_capacity} | CREW: {player_manpower} | SPEED: {player_speed}/30",
-                ]
-                body_colors = [WHITE, GOLD]
+                p_text1 = font_subtitle.render("LOCAL PORT MARKET", True, GREEN)
+                p_text2 = font_event.render("Prices fluctuate based on local resource scarcity at this dock.", True, WHITE)
+                p_text3 = font_event.render(f"YOUR VAULT: {player_gold}g | HOLD: {player_cargo}/{max_cargo_capacity} | CREW: {player_manpower} | SPEED: {player_speed}/30", True, GOLD)
             elif current_event_type == "SQUID_TRAP":
-                title_text = "CRATE TRAP!"
-                body_lines = [
-                    "A giant toxic sea squid burst directly out of the box cargo!",
-                    f"It smashed into your vaults and sank {trap_gold_lost}g (5%) into the sea!",
-                ]
-                body_colors = [WHITE, RED]
+                p_text1 = font_subtitle.render("CRATE TRAP!", True, PURPLE)
+                p_text2 = font_event.render("A giant toxic sea squid burst directly out of the box cargo!", True, WHITE)
+                p_text3 = font_event.render(f"It smashed into your vaults and sank {trap_gold_lost}g (5%) into the sea!", True, RED)
             elif current_event_type == "ROGUE_WAVE":
-                title_text = "⚠️ ROGUE WAVE APPROACHING! ⚠️"
-                body_lines = [
-                    "A towering wall of dark water crashes down onto your hull!",
-                    "Click 'CONTINUE VOYAGE' to brace. Sturdy structural armor is required.",
-                ]
-                body_colors = [WHITE, GOLD]
+                p_text1 = font_subtitle.render("⚠️ ROGUE WAVE APPROACHING! ⚠️", True, RED)
+                p_text2 = font_event.render("A towering wall of dark water crashes down onto your hull!", True, WHITE)
+                p_text3 = font_event.render("Click 'CONTINUE VOYAGE' to brace. Sturdy structural armor is required.", True, GOLD)
             elif current_event_type == "KRAKEN":
-                title_text = "THE KRAKEN AWAKENS!"
-                body_lines = [
-                    "Colossal dark leviathan tentacles rise from the abyssal ocean deep!",
-                    "You must maintain a tactical engine speed of 15 to escape its grasp.",
-                ]
-                body_colors = [WHITE, GOLD]
+                p_text1 = font_subtitle.render("THE KRAKEN AWAKENS!", True, RED)
+                p_text2 = font_event.render("Colossal dark leviathan tentacles rise from the abyssal ocean deep!", True, WHITE)
+                p_text3 = font_event.render("You must maintain a tactical engine speed of 15 to escape its grasp.", True, GOLD)
             elif current_event_type == "BATTLE_RESOLUTION":
-                title_text = resolution_text_lines[0]
-                body_lines = [resolution_text_lines[1], resolution_text_lines[2]]
-                body_colors = [WHITE, WHITE]
-                accent_lines = [resolution_text_lines[3]] if resolution_text_lines[3] else []
-                accent_colors = [GOLD] * len(accent_lines)
+                p_text1 = font_subtitle.render(resolution_text_lines[0], True, GREEN if "SUCCESS" in resolution_text_lines[0] or "MANEUVER" in resolution_text_lines[0] else ORANGE)
+                p_text2 = font_event.render(resolution_text_lines[1], True, WHITE)
+                p_text3 = font_event.render(resolution_text_lines[2], True, WHITE)
+                p_extra = font_event.render(resolution_text_lines[3], True, GOLD)
+                screen.blit(p_extra, (SCREEN_WIDTH // 2 - p_extra.get_width() // 2, 200))
 
-            title_color = GOLD
-            if current_event_type == "ENEMY":
-                title_color = RED
-            elif current_event_type == "PORT":
-                title_color = GREEN
-            elif current_event_type in ["SQUID_TRAP", "KRAKEN"]:
-                title_color = PURPLE if current_event_type == "SQUID_TRAP" else RED
-            elif current_event_type == "ISLAND_RESOLUTION":
-                title_color = GOLD if "TREASURE" in title_text else ORANGE
-            elif current_event_type == "BATTLE_RESOLUTION":
-                title_color = GREEN if "SUCCESS" in title_text or "MANEUVER" in title_text else ORANGE
-
-            title_lines = wrap_text(title_text, font_subtitle, prompt_inner_width)
-            body_wrapped = []
-            for idx, line in enumerate(body_lines):
-                wrapped = wrap_text(line, font_event, prompt_inner_width)
-                for wrapped_line in wrapped:
-                    body_wrapped.append((wrapped_line, body_colors[idx]))
-
-            accent_wrapped = []
-            for idx, line in enumerate(accent_lines):
-                wrapped = wrap_text(line, font_event, prompt_inner_width)
-                for wrapped_line in wrapped:
-                    accent_wrapped.append((wrapped_line, accent_colors[idx]))
-
-            prompt_art_height = 0
-            box_height = max(210, 28 + (len(title_lines) * font_subtitle.get_linesize()) + 10 + prompt_art_height + 10 + (len(body_wrapped) * (font_event.get_linesize() + 4)) + 8 + (len(accent_wrapped) * (font_event.get_linesize() + 4)) + 20)
-            if current_event_type in ["ISLAND", "ISLAND_RESOLUTION"]:
-                box_height = max(box_height, 520)
-
-            prompt_box = pygame.Rect(prompt_left, prompt_top, prompt_width, box_height)
-            pygame.draw.rect(screen, SHADOW_COLOR, (prompt_box.x + 4, prompt_box.y + 4, prompt_box.width, prompt_box.height))
-            pygame.draw.rect(screen, frame_color, prompt_box, 4)
-
-            current_y = prompt_top + 20
-            for line in title_lines:
-                title_surf = font_subtitle.render(line, True, title_color)
-                screen.blit(title_surf, (prompt_center_x - title_surf.get_width() // 2, current_y))
-                current_y += font_subtitle.get_linesize() + 2
-
-            current_y += 20
-            for line, color in body_wrapped:
-                body_surf = font_event.render(line, True, color)
-                screen.blit(body_surf, (prompt_center_x - body_surf.get_width() // 2, current_y))
-                current_y += font_event.get_linesize() + 4
-
-            current_y += 6
-            for line, color in accent_wrapped:
-                accent_surf = font_event.render(line, True, color)
-                screen.blit(accent_surf, (prompt_center_x - accent_surf.get_width() // 2, current_y))
-                current_y += font_event.get_linesize() + 4
+            screen.blit(p_text1, (SCREEN_WIDTH // 2 - p_text1.get_width() // 2, 70))
+            screen.blit(p_text2, (SCREEN_WIDTH // 2 - p_text2.get_width() // 2, 130))
+            screen.blit(p_text3, (SCREEN_WIDTH // 2 - p_text3.get_width() // 2, 165))
 
             if show_error_message:
                 error_surf = font_event.render(error_text_string, True, RED)
                 screen.blit(error_surf, (SCREEN_WIDTH // 2 - error_surf.get_width() // 2, 210 if current_event_type == "PORT" else 190))
 
             btn_option_1.draw(screen)
-            if current_event_type == "ISLAND":
-                btn_option_2.draw(screen)
-            elif current_event_type == "ISLAND_RESOLUTION":
-                pass
-            elif current_event_type in ["ENEMY", "PORT"]:
+            if current_event_type in ["ISLAND", "ENEMY", "PORT"]:
                 btn_option_2.draw(screen)
                 btn_option_3.draw(screen)
             if current_event_type == "PORT":
                 btn_option_4.draw(screen)
                 btn_option_5.draw(screen)
 
-            if current_event_type in ["ISLAND", "ISLAND_RESOLUTION"]:
-                pass
-        elif globals()['current_state'] == "TAX_TIME":
+        elif current_state == "TAX_TIME":
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((11, 24, 44, 180))
             screen.blit(overlay, (0, 0))
-           
+            
             pygame.draw.rect(screen, SHADOW_COLOR, (144, 144, 512, 312))
             pygame.draw.rect(screen, GOLD, (140, 140, 512, 312), 4)
-           
+            
             t_text1 = font_subtitle.render("SAFE ANCHORAGE REACHED", True, GOLD)
             t_text2 = font_event.render(f"End of Day {current_day}. The Royal Fleet requires customs tax.", True, WHITE)
             t_text3 = font_event.render("Failing to pay results in immediate ship impounding.", True, WHITE)
-           
+            
             screen.blit(t_text1, (SCREEN_WIDTH // 2 - t_text1.get_width() // 2, 175))
             screen.blit(t_text2, (SCREEN_WIDTH // 2 - t_text2.get_width() // 2, 250))
             screen.blit(t_text3, (SCREEN_WIDTH // 2 - t_text3.get_width() // 2, 290))
             pay_tax_btn.draw(screen)
 
-
-        elif globals()['current_state'] == "GAME_OVER":
+        elif current_state == "GAME_OVER":
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((20, 10, 10, 225))
             screen.blit(overlay, (0, 0))
-           
+            
             pygame.draw.rect(screen, SHADOW_COLOR, (144, 104, 512, 392))
             pygame.draw.rect(screen, RED, (140, 100, 512, 392), 4)
-           
+            
             go_title = font_title.render("SHIPWRECKED", True, RED)
             screen.blit(go_title, (SCREEN_WIDTH // 2 - go_title.get_width() // 2, 120))
-           
+            
             reason_string = "Your manpower dropped to absolute zero inside the crossfires."
             if game_over_reason == "SPEED":
                 reason_string = "Tactical escape speed failure. Raiders overrun your decks."
@@ -1046,19 +812,15 @@ while True:
                 reason_string = "Hull broken. Massive rogue wave split your structural frame."
             elif game_over_reason == "KRAKEN":
                 reason_string = "Dragged into the abyss. Sunk under the pressure of the beast."
-            elif game_over_reason == "CANNIBALS":
-                reason_string = "Cannibals overwhelmed your shore party. The island claimed the crew."
-
 
             go_reason = font_event.render(reason_string, True, WHITE)
             go_stat1 = font_event.render(f"Days Navigated: {max_days_survived}", True, GOLD)
             go_stat2 = font_event.render(f"Gold Saved in Vault: {max_gold_claimed}g", True, GOLD)
-           
+            
             screen.blit(go_reason, (SCREEN_WIDTH // 2 - go_reason.get_width() // 2, 220))
             screen.blit(go_stat1, (SCREEN_WIDTH // 2 - go_stat1.get_width() // 2, 280))
             screen.blit(go_stat2, (SCREEN_WIDTH // 2 - go_stat2.get_width() // 2, 320))
             restart_btn.draw(screen)
-
 
     pygame.display.flip()
     clock.tick(60)
